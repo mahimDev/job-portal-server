@@ -1,5 +1,5 @@
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -24,12 +24,49 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     const jobCollection = client.db("jobPortal").collection("jobs");
+    const jobApplicationCollection = client
+      .db("jobPortal")
+      .collection("job_applications");
 
     app.get("/jobs", async (req, res) => {
       const jobs = await jobCollection.find().toArray();
       res.send(jobs);
     });
+    app.get("/job-details/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const jobs = await jobCollection.findOne(query);
+      // const jobs = await jobCollection.find().toArray();
+      res.send(jobs);
+    });
 
+    // job application
+    app.post("/job-application", async (req, res) => {
+      const job = req.body;
+      const result = await jobApplicationCollection.insertOne(job);
+      res.send(result);
+    });
+    app.post("/add-jobs", async (req, res) => {
+      const job = req.body;
+      const result = await jobCollection.insertOne(job);
+      res.send(result);
+    });
+    //
+    app.get("/job-application", async (req, res) => {
+      const email = req.query.email;
+      const query = { user_email: email };
+      const jobs = await jobApplicationCollection.find(query).toArray();
+      for (const application of jobs) {
+        console.log(application.job_id);
+        const filter = { _id: new ObjectId(application.job_id) };
+        const job = await jobCollection.findOne(filter);
+        if (job) {
+          application.title = job.title;
+          application.company = job.company;
+        }
+      }
+      res.send(jobs);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
