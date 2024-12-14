@@ -29,7 +29,12 @@ async function run() {
       .collection("job_applications");
 
     app.get("/jobs", async (req, res) => {
-      const jobs = await jobCollection.find().toArray();
+      const email = req.query.email;
+      let query = {};
+      if (email) {
+        query = { hr_email: email };
+      }
+      const jobs = await jobCollection.find(query).toArray();
       res.send(jobs);
     });
     app.get("/job-details/:id", async (req, res) => {
@@ -39,11 +44,46 @@ async function run() {
       // const jobs = await jobCollection.find().toArray();
       res.send(jobs);
     });
+    // updated
+    app.patch("/job-application/:id", async (req, res) => {
+      const id = req.params.id;
+      const { value } = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updatedStatus = {
+        $set: {
+          status: value,
+        },
+      };
+
+      const application = await jobApplicationCollection.updateOne(
+        query,
+        updatedStatus
+      );
+      console.log(value);
+      res.send(application);
+    });
 
     // job application
     app.post("/job-application", async (req, res) => {
-      const job = req.body;
-      const result = await jobApplicationCollection.insertOne(job);
+      const application = req.body;
+      const result = await jobApplicationCollection.insertOne(application);
+      //  not the best way
+      const id = application.job_id;
+      const query = { _id: new ObjectId(id) };
+      const job = await jobCollection.findOne(query);
+      let newCount = 0;
+      if (job.applicationCount) {
+        newCount = job.applicationCount + 1;
+      } else {
+        newCount = 1;
+      }
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          applicationCount: newCount,
+        },
+      };
+      const updatedResult = await jobCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
     app.post("/add-jobs", async (req, res) => {
@@ -52,6 +92,13 @@ async function run() {
       res.send(result);
     });
     //
+    app.get("/job-application/job/:job_id", async (req, res) => {
+      const jobId = req.params.job_id;
+      console.log(jobId);
+      const query = { job_id: jobId };
+      const job = await jobApplicationCollection.find(query).toArray();
+      res.send(job);
+    });
     app.get("/job-application", async (req, res) => {
       const email = req.query.email;
       const query = { user_email: email };
