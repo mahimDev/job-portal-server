@@ -20,8 +20,18 @@ const logger = (req, res, next) => {
   next();
 };
 const varifyToken = (req, res, next) => {
-  console.log("varify token function");
-  next();
+  // console.log("varify token function", req.cookies);
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
 };
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@practice.hcuo4.mongodb.net/?retryWrites=true&w=majority&appName=practice`;
 
@@ -126,11 +136,13 @@ async function run() {
       const job = await jobApplicationCollection.find(query).toArray();
       res.send(job);
     });
-    app.get("/job-application", async (req, res) => {
+    app.get("/job-application", varifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { user_email: email };
       // console.log("kuk kuk ", req.cookies);
-
+      if (req.decoded.email !== req.query.email) {
+        return res.status(403).send({ message: "forbidden email access" });
+      }
       const jobs = await jobApplicationCollection.find(query).toArray();
       for (const application of jobs) {
         // console.log(application.job_id);
