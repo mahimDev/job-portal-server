@@ -7,10 +7,22 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5174"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
-
+const logger = (req, res, next) => {
+  console.log("logger function");
+  next();
+};
+const varifyToken = (req, res, next) => {
+  console.log("varify token function");
+  next();
+};
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@practice.hcuo4.mongodb.net/?retryWrites=true&w=majority&appName=practice`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -31,7 +43,8 @@ async function run() {
       .db("jobPortal")
       .collection("job_applications");
 
-    app.get("/jobs", async (req, res) => {
+    app.get("/jobs", logger, async (req, res) => {
+      console.log("Job");
       const email = req.query.email;
       let query = {};
       if (email) {
@@ -62,7 +75,7 @@ async function run() {
         query,
         updatedStatus
       );
-      console.log(value);
+      // console.log(value);
       res.send(application);
     });
     // auth retated api
@@ -101,6 +114,7 @@ async function run() {
     });
     app.post("/add-jobs", async (req, res) => {
       const job = req.body;
+      console.log(job);
       const result = await jobCollection.insertOne(job);
       res.send(result);
     });
@@ -115,9 +129,11 @@ async function run() {
     app.get("/job-application", async (req, res) => {
       const email = req.query.email;
       const query = { user_email: email };
+      // console.log("kuk kuk ", req.cookies);
+
       const jobs = await jobApplicationCollection.find(query).toArray();
       for (const application of jobs) {
-        console.log(application.job_id);
+        // console.log(application.job_id);
         const filter = { _id: new ObjectId(application.job_id) };
         const job = await jobCollection.findOne(filter);
         if (job) {
